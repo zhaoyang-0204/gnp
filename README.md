@@ -1,0 +1,2 @@
+# gnp
+gradient norm penalty

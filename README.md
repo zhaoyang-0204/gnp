@@ -12,7 +12,7 @@ $$\begin{aligned}
 L(\theta) = L_{\mathcal{S}}(\theta) + \lambda ||\nabla_{\theta} L_{\mathcal{S}}(\theta)||_2
 \end{aligned}$$
 
-Gradient norm is considered a property that characterizes the flatness of the loss surface. Penalizing gradient norm motivates to bias the optimization to converge to flatter minima, leading to better model generalization. 
+Gradient norm is considered a property that could characterize the flatness of the surface. Roughly speaking, penalizing the gradient norm of loss motivates to bias the optimization to converge to flatter minima of loss surface, leading to better model generalization. 
 
 ##### 1.2 Practical gradient computation of gradient norm
 
@@ -51,7 +51,7 @@ where is a small scalar value. So, we need to set two parameters for gradient no
     ...
     ```
 
-* The **optimizer** folder stores the optimizers, currently including SGD (Momentum) and Adam.  One could add extra custom optimizers in the files if needed.  
+* The **optimizer** folder stores the optimizers, currently including SGD (Momentum) and Adam.  One could add extra custom optimizers in the files if needed.
 
 * The **recipe** folder stores the *.sh files. Each .sh file is one launching file for training a specific model. One could run it using the bash command, e.g.
 
@@ -59,14 +59,16 @@ where is a small scalar value. So, we need to set two parameters for gradient no
     bash wideresnet_cifar.sh
     ```
     
-  If one want to deploy config directly, one could run with
+  If one want to deploy config directly (the config flag must be in the config file), one could run with
   
     ```
     python3 -m gnp.main.main  --config=the-train-config-py-file --working_dir=your-output-dir --config.config-anything-else-here
     ```
 
+* Other 
 
-### 3. Bibtex
+
+### 4. Bibtex
 
 If you find this helpful, you could cite the paper as
 ```

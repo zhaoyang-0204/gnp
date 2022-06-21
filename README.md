@@ -65,10 +65,12 @@ where is a small scalar value. So, we need to set two parameters for gradient no
     python3 -m gnp.main.main  --config=the-train-config-py-file --working_dir=your-output-dir --config.config-anything-else-here
     ```
 
-* Other 
 
 
-### 4. Bibtex
+### 3. End
+
+Corresponding results could be found in the paper. Currently, it only contains models trained from scratch on image classification tasks. We appreciate anyone that would share other results , report bugs or contribute in any way. Also, we will respond as soon as possible if anyone encountered any problem.
+
 
 If you find this helpful, you could cite the paper as
 ```

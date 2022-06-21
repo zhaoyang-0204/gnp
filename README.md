@@ -58,7 +58,12 @@ where is a small scalar value. So, we need to set two parameters for gradient no
     ```
     bash wideresnet_cifar.sh
     ```
-
+    
+  If one want to deploy config directly, one could run with
+  
+    ```
+    python3 -m gnp.main.main  --config=the-train-config-py-file --working_dir=your-output-dir --config.config-anything-else-here
+    ```
 
 
 ### 3. Bibtex

@@ -29,7 +29,7 @@ $$\begin{split}
     & = (1 - \frac{\lambda}{r}) \nabla_{\theta} L_{\mathcal{S}}(\theta) + \frac{\lambda}{r} \cdot \nabla_{\theta}L_\mathcal{S}(\theta +r\frac{\nabla_{\theta}L_{\mathcal{S}}(\theta)}{||\nabla_{\theta}L_{\mathcal{S}}(\theta)||})
 \end{split}$$
  
-where is a  $\sqrt{3x-1}+(1+x)^2$ small scalar value. So, we need to set two parameters for gradient norm penalty, one for the penalty coefficient $\sqrt{3x-1}+(1+x)^2$ and the other one for  $\sqrt{3x-1}+(1+x)^2$. And we will further use  $\sqrt{3x-1}+(1+x)^2$. In particular, [SAM](https://github.com/google-research/sam) is a special implementation of this scheme, where $\alpha$ will always set equal to 1.
+where is a $\sqrt{3x-1}+(1+x)^2$ small scalar value. So, we need to set two parameters for gradient norm penalty, one for the penalty coefficient  $\sqrt{3x-1}+(1+x)^2$ and the other one for  $\sqrt{3x-1}+(1+x)^2$. And we will further use  $\sqrt{3x-1}+(1+x)^2$. In particular, [SAM](https://github.com/google-research/sam) is a special implementation of this scheme, where $\alpha$ will always set equal to 1.
 
 ### 2. Training using this repo
 

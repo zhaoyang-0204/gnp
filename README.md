@@ -29,7 +29,7 @@ $$\begin{split}
     & = (1 - \frac{\lambda}{r}) \nabla_{\theta} L_{\mathcal{S}}(\theta) + \frac{\lambda}{r} \cdot \nabla_{\theta}L_\mathcal{S}(\theta +r\frac{\nabla_{\theta}L_{\mathcal{S}}(\theta)}{||\nabla_{\theta}L_{\mathcal{S}}(\theta)||})
 \end{split}$$
  
-where <img src="https://render.githubusercontent.com/render/math?math=r"> is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient  and the other one for <img src="https://render.githubusercontent.com/render/math?math=r">. And we will further use. In particular, [SAM](https://github.com/google-research/sam) is a special implementation of this scheme, where $\alpha$ will always set equal to 1.
+where <img src="https://render.githubusercontent.com/render/math?math=r"> is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient  and the other one for <img src="https://render.githubusercontent.com/render/math?math=r">. And we will further use $\alpha$ = $\lambda$. In particular, [SAM](https://github.com/google-research/sam) is a special implementation of this scheme, where $\alpha$ will always set equal to 1.
 
 ### 2. Training using this repo
 

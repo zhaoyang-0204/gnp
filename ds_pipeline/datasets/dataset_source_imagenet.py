@@ -1,4 +1,4 @@
-# Copyright 2020 The Authors.
+# Copyright 2022 The Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Imagenet DatasetSource.
+"""
+    Imagenet DatasetSource.
 
-Initially forked from:
-https://github.com/google/flax/blob/master/examples/imagenet/input_pipeline.py
+    Initially forked from:
+      https://github.com/google/flax/blob/master/examples/imagenet/input_pipeline.py
+    and 
+      https://github.com/google-research/sam.
+
+    Note that when loading ImageNet dataset, some methods in this repo is
+      rewritten to use the local data, instead of the downloaded
+      tensorflow_datasets like SAM. One should specify the path to the local
+      dataset folders in the basic config flags. If you would like to change the
+      flags defined in this folder, you could specify it when executing, e.g.
+      python ... --randaug_num_layers=4
 """
 
 from typing import Dict, Tuple
@@ -23,13 +33,10 @@ import glob
 
 from absl import flags
 from absl import logging
-import jax
 from gnp.ds_pipeline.autoaugment import autoaugment
 from gnp.ds_pipeline.datasets import dataset_source
 import tensorflow as tf
-import tensorflow_datasets as tfds
 import tensorflow_probability as tfp
-import functools
 
 FLAGS = flags.FLAGS
 
@@ -42,9 +49,6 @@ flags.DEFINE_integer('randaug_magnitude', 9,
                      'Magnitude of augmentations applied by RandAugment.')
 flags.DEFINE_float('imagenet_mixup_alpha', 0.0, 'If > 0, use mixup.')
 
-
-TRAIN_DATA_DIR = "/home/zhaoyang0204/dataset/imagenet/imagenet_train"
-EVAL_DATA_DIR = "/home/zhaoyang0204/dataset/imagenet/imagenet_val"
 
 TRAIN_IMAGES = 1281167
 EVAL_IMAGES = 50000
@@ -105,11 +109,9 @@ def _distorted_bounding_box_crop(image_bytes: tf.Tensor,
 
   return image
 
-
 def _resize(image: tf.Tensor, image_size: int) -> tf.Tensor:
   """Returns the resized image."""
   return tf.compat.v1.image.resize_bicubic([image], [image_size, image_size])[0]
-
 
 def _at_least_x_are_equal(a: tf.Tensor, b: tf.Tensor,
                           x: int) -> tf.Tensor:
@@ -119,7 +121,7 @@ def _at_least_x_are_equal(a: tf.Tensor, b: tf.Tensor,
   return tf.greater_equal(tf.reduce_sum(match), x)
 
 def image_decoder(path):
-  # return tf.image.decode_jpeg(tf.io.read_file(path), 3)
+  """Read the content from a given image path"""
   return tf.io.read_file(path)
 
 def _decode_and_random_crop(image_bytes: tf.Tensor,
@@ -230,7 +232,7 @@ def preprocess_for_eval(image_bytes: tf.Tensor,
   return image
 
 def get_directory_info(directory):
-    """Returns information about directory dataset -- see `get_dataset_info()`."""
+    """Returns information about directory dataset."""
     examples_glob = f'{directory}/*/*.*'
     paths = glob.glob(examples_glob)
     get_classname = lambda path: path.split('/')[-2]
@@ -277,26 +279,25 @@ class Imagenet(dataset_source.DatasetSource):
       image_level_augmentations: If set to 'autoaugment', will apply
         RandAugment to the training set.
     """
-    print("Loading Imagenet")
     self.batch_size = batch_size
     self.image_size = image_size
     self.num_training_obs = TRAIN_IMAGES
-    self.train_data_info = get_directory_info(TRAIN_DATA_DIR)
-    self.eval_data_info = get_directory_info(EVAL_DATA_DIR)
-    self.load_data()
-    # self._train_ds = load_split(train=True, cache=True)
-    # self._test_ds = load_split(train=False, cache=True)
+    self.train_data_info = get_directory_info(FLAGS.config.imagenet_train_dir)
+    self.eval_data_info = get_directory_info(FLAGS.config.imagenet_val_dir)
+    self.load_files()
     self._num_classes = 1000
     self._image_level_augmentations = image_level_augmentations
 
-  def load_data(self):
+  def load_files(self):
+    """ Load file names from the directory. """
     self._train_ds = tf.data.Dataset.list_files(self.train_data_info['examples_glob'])
     self.class_names = [
       self.train_data_info['int2str'](id_) for id_ in range(self.train_data_info['num_classes'])
     ]
     self._test_ds = tf.data.Dataset.list_files(self.eval_data_info['examples_glob'])
 
-  def _pp(self, path):
+  def _pp(self, path : str) -> Dict[str, tf.Tensor]:
+    """ Combine data into dict-like structure with image and label keys. """
     return dict(
         image=path,
         label=tf.where(
@@ -358,32 +359,3 @@ class Imagenet(dataset_source.DatasetSource):
     label = tf.one_hot(
         example['label'], depth=self._num_classes, on_value=1.0, off_value=0.0)
     return {'image': image, 'label': label}
-
-
-if __name__ == "__main__":
-  # import tqdm
-  # ds_test = Imagenet(batch_size=256, image_size=IMAGE_SIZE)
-  # import time
-  # i = 0
-  # # for batch in tqdm.tqdm(ds_test.get_train(False)):
-  # for batch in ds_test.get_train(False):
-  #   x =  batch["image"]
-  #   for item in x:
-  #     i = i + 1
-  #     print(i, " ", item)
-  #     # _ = image_decoder(item)
-  #     # shape = tf.image.extract_jpeg_shape(_)
-  #     # print(i, " ", item, shape)
-  #     try:
-  #       image = preprocess_for_train(item)
-  #     except:
-  #       with open("/home/workthu/zy/code/wrong_image_in_imagenet.txt", "a+") as f:
-  #         wr = f"{item}"
-  #         f.write(wr)
-  #         f.write("\n")
-
-
-  x = '/home/zhaoyang0204/dataset/imagenet/imagenet_train/n02105855/n02105855_2933.JPEG'
-  x = tf.io.read_file(x)
-  shape = tf.image.extract_jpeg_shape(x)
-  print(shape)

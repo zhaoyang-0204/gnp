@@ -1,4 +1,4 @@
-# Copyright 2020 The Authors.
+# Copyright 2022 The Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""AutoAugment policies for Imagenet, Cifar and SVHN."""
+"""
+    AutoAugment policies for Imagenet, Cifar and SVHN.
+
+    Forked from the SAM repo
+      https://github.com/google-research/sam.
+"""
 
 from typing import List, Tuple
 

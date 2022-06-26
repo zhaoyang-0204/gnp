@@ -12,55 +12,105 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base config flags, including basic config flags ."""
+"""
+    Base config flags, including basic config flags, model config flags, dataset
+      config flags and optimizer config flags.
+"""
 
 import ml_collections
 
 
-def get_basic_config():
+def get_basic_config() -> ml_collections.ConfigDict:
+    """
+        Set basic config flags.
+
+        Returns:
+            config : the base config class.
+    """
 
     config = ml_collections.ConfigDict()
 
+    # model_folder : leave it None, and it will be set further.
     config.model_folder = None
+
+    # init_seeds : the seeds for model initialization.
     config.init_seeds = 0
+
+    # seeds : the seeds for setting PRNG keys during training.
     config.seeds = 0
+
+    # batch_size : batch size. This should be divisible by your GPU numbers.
     config.batch_size = 128 * 2
+
+    # base_lr : base learning rate. 
     config.base_lr = 1e-1
+
+    # total_epochs : total epochs for training.
     config.total_epochs = 200
+
+    # gradient_clipping : gradient clipping.
     config.gradient_clipping = 5.0
+
+    # use_learning_rate_schedule : use_learning_rate_schedule
     config.use_learning_rate_schedule = True
+
+    # l2_regularization : l2 regularization.
     config.l2_regularization = 1e-3
-    config.use_rmsprop = False
+
+    # lr_schedule_type : learning rate schedule
     config.lr_schedule_type = "cosine"
+
+    # save_ckpt_every_n_epochs : save model checkpoint every n epochs
     config.save_ckpt_every_n_epochs = 200
-    config.warmup_steps = 0
+
+    # warmup_epochs : epochs for warmup training.
+    config.warmup_epochs = 0
+
+    # label_smoothing : label smooting rate.
     config.label_smoothing = 0.
-
-    config.additional_checkpoints_at_epochs = []
-    config.also_eval_on_training_set = False
+    
+    # compute_top_5_error_rate : record top 5 error rate
     config.compute_top_5_error_rate = False
-    config.evaluate_every = 1
-    config.inner_group_size = None
-    config.no_weight_decay_on_bn = False
-    config.asam = False
-    config.use_dual_in_adam = False
 
+    # evaluate_every_n_epochs : perform evaluation every n epoch.
+    config.evaluate_every_n_epochs = 1
+
+    # gnp params. See paper for details
     config.gnp = ml_collections.ConfigDict()
     config.gnp.r = 0.0
-    config.gnp.sync_perturbations = False
     config.gnp.alpha = 0.0
-    config.gnp.norm_perturbations = False
+    config.gnp.norm_perturbations = True
+    config.gnp.sync_perturbations = False
 
+    # retain : if true, delete the exist model and train from the start.
     config.retrain = False
+
+    # logging params.
     config.logging = ml_collections.ConfigDict()
     config.logging.tensorboard_logging_frequency = 1
     config.logging.basic_logger_level = "debug"
     config.logging.logger_sys_output = False
     config.write_config_to_json = True
 
+    ### Some other flags
+    config.use_test_set=True
+    config.use_additional_skip_connections_in_wrn = False
+    config.no_weight_decay_on_bn = False
+    config.tfds_dir = "/home/zhaoyang0204/dataset/tensorflow_datasets"
+    config.imagenet_train_dir = "/home/zhaoyang0204/dataset/imagenet/imagenet_train"
+    config.imagenet_val_dir = "/home/zhaoyang0204/dataset/imagenet/imagenet_val"
+
     return config.lock()
 
-def get_dataset_config():
+
+def get_dataset_config()-> ml_collections.ConfigDict:
+    """
+        Set dataset config flags. Datasets flags will be an attribute of the
+          config class, i.e. config.dataset.dataset_flags.
+
+        Returns:
+            config : the dataset config class.
+    """
 
     config = ml_collections.ConfigDict()
     config.dataset_name = "cifar10"
@@ -70,29 +120,54 @@ def get_dataset_config():
     config.num_classes = 10
     config.num_channels = 3
 
-    # config.dataset_name = "imagenet"
-    # config.image_level_augmentations = "none"
-    # config.batch_level_augmentations = "none"
-    # config.image_size = 224
-    # config.num_classes = 1000
-    # config.num_channels = 3
+    return config
+
+
+def get_optimizer_config() -> ml_collections.ConfigDict:
+    """
+        Set optimizer config flags. Optimizer flags will be an attribute of the
+          config class, i.e. config.opt.opt_flags. Note that not all the flags
+          will be pass to the optimizer class. These flags will further be
+          filtered in the get_optimizer.py file based on the optimizer type.
+
+        Returns:
+            config : the optimizer config class. 
+    """
+
+    config = ml_collections.ConfigDict()
+    config.opt_type = "SGD"
+    config.opt_params = ml_collections.ConfigDict()
+    config.opt_params.nesterov = True
+    config.opt_params.grad_norm_clip = 2.0
+    config.opt_params.weight_decay = 0.3
 
     return config
 
 
-def get_optimizer_config():
+def get_model_config() -> ml_collections.ConfigDict:
+    """
+        Set model config flags. Model flags will be an attribute of the config
+          class, i.e. config.model.model_flags. 
+
+        Returns:
+            config : the model config class.
+    """
 
     config = ml_collections.ConfigDict()
-
-    config.opt_type = "SGD"
-
-    config.opt_params = ml_collections.ConfigDict()
-    config.opt_params.nesterov = True
-    config.opt_params.beta = 0.9
-
-    # config.opt_name = "Adam"
-    # config.opt_params = ml_collections.ConfigDict()
-    # config.opt_params.grad_norm_clip = 1.0
-    # config.opt_params.weight_decay = 0.3
-
+    config.model_name = "WideResNet_28_10"
+    
+    # Config Other model parameters here. We will parse these parameters into
+    # the model as key-value pair.
+    config.model_params = ml_collections.ConfigDict()
+    
+    ### For example: ###
+    # config.model_params.patches = ml_collections.ConfigDict({'size': (4, 4)})
+    # config.model_params.hidden_size = 768
+    # config.model_params.transformer = ml_collections.ConfigDict()
+    # config.model_params.transformer.mlp_dim = 3072
+    # config.model_params.transformer.num_heads = 12
+    # config.model_params.transformer.num_layers = 12
+    # config.model_params.transformer.attention_dropout_rate = 0.0
+    # config.model_params.transformer.dropout_rate = 0.0
+    
     return config

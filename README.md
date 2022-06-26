@@ -39,7 +39,7 @@ where is a small scalar value. So, we need to set two parameters for gradient no
 
 * The **model** folder stores the model architectures, currently including VGG, ResNet, WideResNet, PyramidNet and ViT. One could add extra model architectures according to the Flax model template. Do not forget to register the model using the function _register_model in the folder after adding your custom models. 
  
-* The **ds_pipeline** folder is for providing dataset pipeline, which is mostly based on that in [SAM](https://github.com/google-research/sam) repo. Unlike that in SAM, ImageNet dataset in this repo uses the local data, not the downloaded tensorflow_datasets. One should parse the path to the local dataset folders, where the folder structure must be 
+* The **ds_pipeline** folder is for providing dataset pipeline, which is mostly based on that in [SAM](https://github.com/google-research/sam) repo. Unlike that in SAM, ImageNet dataset in this repo uses the local data, not the downloaded tensorflow_datasets. One should specify the path to the local dataset folders, where the folder structure must be 
     ```
     ImageNet folder
     |

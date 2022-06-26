@@ -1,4 +1,4 @@
-# Copyright 2020 The Authors.
+# Copyright 2022 The Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Implements data augmentations for cifar10/cifar100."""
+"""
+    Implements data augmentations for cifar10/cifar100.
+
+    Forked from the SAM repo
+      https://github.com/google-research/sam.
+"""
 
 from typing import Dict
 
@@ -56,48 +61,6 @@ def weak_image_augmentation(example: Dict[str, tf.Tensor],
               [random_crop_pad, random_crop_pad], [0, 0]],
       mode='REFLECT')
   image = tf.image.random_crop(image, image_shape)
-  return {'image': image, 'label': label}
-
-
-def heavy_image_augmentation(example: Dict[str, tf.Tensor],
-                            random_crop_pad: int = 8) -> Dict[str, tf.Tensor]:
-  """Applies random crops and horizontal flips.
-
-  Simple data augmentations that are (almost) always used with cifar. Pad the
-  image with `random_crop_pad` before randomly cropping it to its original
-  size. Also randomly apply horizontal flip.
-
-  Args:
-    example: An example dict containing an image and a label.
-    random_crop_pad: By how many pixels should the image be padded on each side
-      before cropping.
-
-  Returns:
-    An example with the same label and an augmented version of the image.
-  """
-  print("Heavy data aug...")
-  image, label = example['image'], example['label']
-  image = tf.image.random_flip_left_right(image)
-  image_shape = tf.shape(image)
-  # image = tf.pad(
-  #     image, [[random_crop_pad, random_crop_pad],
-  #             [random_crop_pad, random_crop_pad], [0, 0]],
-  #     mode='REFLECT')
-  begin, size, _ = tf.image.sample_distorted_bounding_box(
-      tf.shape(image),
-      tf.zeros([0, 0, 4], tf.float32),
-      area_range=(0.5, 1.0),
-      min_object_covered=0,  # Don't enforce a minimum area.
-      use_image_if_no_bounding_boxes=True)
-  imgs = tf.slice(image, begin, size)
-  imgs.set_shape([None, None, 3])
-  imgs = tfa.image.rotate(imgs, tf.random.uniform([], minval = -0.15 * math.pi, maxval = 0.15 * math.pi))
-  imgs = tf.image.resize(imgs, [32, 32])
-  # image = tf.pad(
-  #     image, [[random_crop_pad, random_crop_pad],
-  #             [random_crop_pad, random_crop_pad], [0, 0]],
-  #     mode='REFLECT')
-  # image = tf.image.random_crop(image, image_shape)
   return {'image': image, 'label': label}
 
 

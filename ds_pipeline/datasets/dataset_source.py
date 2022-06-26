@@ -1,4 +1,4 @@
-# Copyright 2020 The Authors.
+# Copyright 2022 The Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utility class to load datasets and apply data augmentation."""
+"""
+    Utility class to load datasets and apply data augmentation.
+
+    Forked from the SAM repo
+      https://github.com/google-research/sam.
+"""
 
 import abc
 from typing import Callable, Dict, Optional
@@ -26,15 +31,6 @@ import tensorflow_datasets as tfds
 
 
 FLAGS = flags.FLAGS
-
-
-flags.DEFINE_bool('use_test_set', True,
-                  'Whether to use the test set or not. If not, then 10% '
-                  'observations will be set aside from the training set and '
-                  'used as a validation set instead.')
-
-flags.DEFINE_string("tfds_dir",  "/home/zhaoyang0204/dataset/tensorflow_datasets",
-                   "tensorflow dataset dir")
 
 
 class DatasetSource(abc.ABC):
@@ -181,25 +177,22 @@ class CifarDatasetSource(TFDSDatasetSource):
     """
     assert name in ['cifar10', 'cifar100']
     assert image_level_augmentations in ['none', 'basic', 'autoaugment']
-    assert batch_level_augmentations in ['none', 'cutout', 'mixcut']
+    assert batch_level_augmentations in ['none', 'cutout', 'mixcut', "mixup"]
     self._image_size = image_size
     self.batch_size = batch_size
-    print(self.__dict__)
-    # FLAGS.use_test_set = False
-    print("Test", FLAGS.use_test_set)
-    if FLAGS.use_test_set:
+    if FLAGS.config.use_test_set:
       self.num_training_obs = 50000
       train_split_size = self.num_training_obs // jax.host_count()
       start = jax.host_id() * train_split_size
       train_split = 'train[{}:{}]'.format(start, start + train_split_size)
-      self._train_ds = tfds.load(name, split=train_split, data_dir = FLAGS.tfds_dir).cache()
-      self._test_ds = tfds.load(name, split='test', data_dir = FLAGS.tfds_dir).cache()
+      self._train_ds = tfds.load(name, split=train_split, data_dir = FLAGS.config.tfds_dir).cache()
+      self._test_ds = tfds.load(name, split='test', data_dir = FLAGS.config.tfds_dir).cache()
       logging.info('Used test set instead of validation set.')
     else:
       # Validation split not implemented for multi-host training.
       assert jax.host_count() == 1
-      self._train_ds = tfds.load(name, split='train[:45000]', data_dir = FLAGS.tfds_dir).cache()
-      self._test_ds = tfds.load(name, split='train[45000:]', data_dir = FLAGS.tfds_dir).cache()
+      self._train_ds = tfds.load(name, split='train[:45000]', data_dir = FLAGS.config.tfds_dir).cache()
+      self._test_ds = tfds.load(name, split='train[45000:]', data_dir = FLAGS.config.tfds_dir).cache()
       self.num_training_obs = 45000
       logging.info('Used validation set instead of test set.')
     self._augmentation = image_level_augmentations
@@ -266,7 +259,7 @@ class FashionMnist(TFDSDatasetSource):
     assert batch_level_augmentations in ['none', 'cutout']
     self.batch_size = batch_size
     self._image_size = None
-    if FLAGS.use_test_set:
+    if FLAGS.config.use_test_set:
       self._train_ds = tfds.load('fashion_mnist', split='train').cache()
       self._test_ds = tfds.load('fashion_mnist', split='test').cache()
       logging.info('Used test set instead of validation set.')
@@ -313,7 +306,7 @@ class SVHN(TFDSDatasetSource):
     assert batch_level_augmentations in ['none', 'cutout']
     self.batch_size = batch_size
     self._image_size = None
-    if FLAGS.use_test_set:
+    if FLAGS.config.use_test_set:
       ds_base = tfds.load('svhn_cropped', split='train')
       ds_extra = tfds.load('svhn_cropped', split='extra')
       self._train_ds = ds_base.concatenate(ds_extra).cache()

@@ -12,19 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+    Train config flags, which collects all the config flags. The path to this
+    file must be parsed when executing the training script. 
+"""
+
 import ml_collections
-from gnp.config.base_config import get_basic_config, get_optimizer_config, get_dataset_config
-from gnp.config.model_config import get_model_config
+from gnp.config.base_config import get_basic_config, get_optimizer_config, get_dataset_config, get_model_config
 
 
-def get_config():
-    
+def get_config() -> ml_collections.ConfigDict:
+    """
+        Train config flags, which collects all the config flags.
+
+        Returns:
+            config : the final config class for training. 
+    """
+
     config = get_basic_config()
     config.unlock()
 
     config.model = get_model_config()
     config.dataset = get_dataset_config()
     config.opt = get_optimizer_config()
-    # config.model.num_outputs = config.dataset.num_outputs
-  
+
     return config.lock()

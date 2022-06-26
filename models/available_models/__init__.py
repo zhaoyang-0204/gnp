@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-MODEL_SET = {}
-
-def _register_model(model_name : str):
-    assert model_name not in MODEL_SET.keys()
-    def decorator(model_fn):
-        MODEL_SET[model_name] = model_fn
-        def fun_wrapper(*args, **kwargs):
-            return model_fn(*args, **kwargs)
-        return fun_wrapper
-    return decorator
+import gnp.models.available_models.vgg
+import gnp.models.available_models.resnet
+import gnp.models.available_models.wrn
+import gnp.models.available_models.wrn_shakeshake
+import gnp.models.available_models.pyramidnet
+import gnp.models.available_models.pyramidnet_shakedrop
+import gnp.models.available_models.vit_model

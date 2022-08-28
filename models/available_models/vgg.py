@@ -133,7 +133,7 @@ class VGGBaseClass(nn.Module):
 
 
 @_register_model("VGG16")
-def VGG16BN(num_outputs : int, *args, **kwargs):
+def VGG16(num_outputs : int, *args, **kwargs):
     """
         Build VGG16 module. block_list = [2, 2, 3, 3, 3]
 
@@ -151,7 +151,7 @@ def VGG16BN(num_outputs : int, *args, **kwargs):
 
 
 @_register_model("VGG19")
-def VGG19BN(num_outputs : int, *args, **kwargs):
+def VGG19(num_outputs : int, *args, **kwargs):
     """
         Build VGG19 module. block_list = [2, 2, 4, 4, 4]
 

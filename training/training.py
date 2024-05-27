@@ -31,13 +31,14 @@ from tensorflow.io import gfile
 from gnp.training import lr_schedule
 from gnp.training import training_core
 from gnp.ds_pipeline.get_dataset import dataset_source
+import optax
 
 FLAGS = flags.FLAGS
 
 
 def train(model : flax.linen.Module,
-          optimizer : flax.optim.Optimizer,
-          state : flax.core.frozen_dict.FrozenDict,
+          optimizer : optax.GradientTransformation,
+          variables : flax.core.frozen_dict.FrozenDict,
           dataset_source : dataset_source.DatasetSource,
           working_dir : str,
           num_epochs : int) -> None:
@@ -62,11 +63,24 @@ def train(model : flax.linen.Module,
     if jax.host_id() != 0:
         summary_writer.scalar = lambda *args: None
 
-    # Check and launch previous saved latest checkpoint with the 
+    # Get learning rate schedule
+    schedule = lr_schedule.get_lr_schedule(
+        lr_schedule_type = FLAGS.config.lr_schedule_type,
+        base_lr = FLAGS.config.base_lr,
+        num_epochs = num_epochs,
+        num_trainig_samples = dataset_source.num_training_obs,
+        batch_size = dataset_source.batch_size,
+        warmup_epochs = FLAGS.config.warmup_epochs,
+    )
+
+    optimizer = optimizer(learning_rate=schedule, momentum=0.9, **FLAGS.config.opt.opt_params)
+    opt_state = optimizer.init(variables['params'])
+
+        # Check and launch previous saved latest checkpoint with the 
     # same config deployments.
     if gfile.exists(checkpoint_dir):
-        optimizer, state, epoch_last_checkpoint = utli.restore_checkpoint(
-            optimizer, state, checkpoint_dir)
+        opt_state, variables, epoch_last_checkpoint = utli.restore_checkpoint(
+            opt_state, variables, checkpoint_dir)
         initial_epoch = epoch_last_checkpoint + 1
         info = 'Resuming training from epoch {}'.format(initial_epoch)
         logging.info(info)
@@ -81,37 +95,38 @@ def train(model : flax.linen.Module,
         initial_epoch = jnp.array(0, dtype=jnp.int32)
         logging.info("Starting training from scratch.")
 
+
+    opt_state = jax_utils.replicate(opt_state)
     # Replicate the optimizer and state to each available devices.
-    optimizer = jax_utils.replicate(optimizer)
-    state = jax_utils.replicate(state)
+    variables = jax_utils.replicate(variables)
 
     # PRNG Key for rngs that exist in the model.
     prng_key = jax.random.PRNGKey(FLAGS.config.seeds)
-
-    # Get learning rate schedule
-    learning_rate_fn = lr_schedule.get_learning_schedule(
-        lr_schedule_type = FLAGS.config.lr_schedule_type,
-        base_lr = FLAGS.config.base_lr,
-        num_epochs = num_epochs,
-        num_trainig_samples = dataset_source.num_training_obs,
-        batch_size = dataset_source.batch_size,
-        warmup_epochs = FLAGS.config.warmup_epochs,
-    )
 
     # PMAP the training and evaluate functions. This will pass the
     # functions to each device to execute later.
     pmapped_train_step = jax.pmap(
         functools.partial(
             training_core.train_step,
-            learning_rate_fn=learning_rate_fn,
             l2_reg=FLAGS.config.l2_regularization,
-            apply_fn = model.apply),
+            r = FLAGS.config.gnp.r,
+            apply_fn = model.apply,
+            tx_update = optimizer.update),
         axis_name='batch',
         donate_argnums=(0, 1))
+    pmapped_standard_train_step = jax.pmap(
+        functools.partial(
+            training_core.train_step,
+            l2_reg=FLAGS.config.l2_regularization,
+            r = 0.0,
+            apply_fn = model.apply,
+            tx_update = optimizer.update),
+        axis_name='batch',
+        donate_argnums=(0, 1)) if FLAGS.config.use_hybrid_training else None
     pmapped_eval_step = jax.pmap(
         functools.partial(
             training_core.eval_step,
-            apply_fn = model.apply),
+            apply_fn = model.apply,),
          axis_name='batch')
 
     # Start training.
@@ -122,11 +137,13 @@ def train(model : flax.linen.Module,
         logging.info(f"********************* Epoch {epochs_id} / {num_epochs} *********************")
         info = f"[Epoch {epochs_id}] Training the {epochs_id}th epoch. Please wait..."
         logging.info(info)
-        optimizer, state, train_summary = training_core.train_for_one_epoch(
-                optimizer, state, dataset_source, prng_key, pmapped_train_step,
+        opt_state, variables, train_summary = training_core.train_for_one_epoch(
+                opt_state, variables, dataset_source, prng_key,
+                pmapped_train_step,
+                pmapped_standard_train_step
             )
         # Write to tensorboard.
-        current_step = int(optimizer.state.step[0])
+        current_step = int(opt_state.count[0])
         for metric_name, metric_value in train_summary.items():
             summary_writer.scalar(metric_name, metric_value, current_step)
         summary_writer.flush()
@@ -147,10 +164,10 @@ def train(model : flax.linen.Module,
             info = f'[Epoch {epochs_id}] Evaluating at end of {epochs_id}th epoch'
             logging.info(info)
             tick = time.time()
-            current_step = int(optimizer.state.step[0])
+            current_step = int(opt_state.count[0])
             test_ds = dataset_source.get_test()
             test_metrics = training_core.eval_on_dataset(
-                optimizer.target, state, test_ds, pmapped_eval_step)
+                variables, test_ds, pmapped_eval_step)
             for metric_name, metric_value in test_metrics.items():
                 summary_writer.scalar('test_' + metric_name,
                                     metric_value, current_step)
@@ -170,8 +187,8 @@ def train(model : flax.linen.Module,
         # to decide the maximum number of saved checkpoint, where the 
         # default number is 2.
         if epochs_id % FLAGS.config.save_ckpt_every_n_epochs == 0 and epochs_id != 0:
-            utli.save_checkpoint(optimizer, state, checkpoint_dir, epochs_id)
+            utli.save_checkpoint(opt_state, variables, checkpoint_dir, epochs_id)
             logging.info(f'[Epoch {epochs_id}]  Saved checkpoint.')
 
     # Always save last checkpoint.
-    utli.save_checkpoint(optimizer, state, checkpoint_dir, epochs_id)
+    utli.save_checkpoint(opt_state, variables, checkpoint_dir, epochs_id)

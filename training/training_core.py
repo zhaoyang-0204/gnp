@@ -20,22 +20,24 @@ import flax
 import jax.numpy as jnp
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from gnp.training import utli
-from absl import flags
+from absl import flags, logging
 import jax
 from flax.training import common_utils
 from gnp.ds_pipeline.get_dataset import dataset_source
+import optax
 
 FLAGS = flags.FLAGS
 
 def train_step(
-        optimizer: flax.optim.Optimizer,
-        state: flax.core.frozen_dict.FrozenDict,
+        opt_state: optax.GradientTransformation,
+        variables: flax.core.frozen_dict.FrozenDict,
         batch: Dict[str, jnp.ndarray],
         prng_key: jnp.ndarray,
-        learning_rate_fn: Callable[[int], float],
         l2_reg: float,
+        r : float,
         apply_fn : Callable[[jnp.ndarray], jnp.ndarray],
-    ) -> Tuple[flax.optim.Optimizer, flax.core.frozen_dict.FrozenDict,
+        tx_update,
+    ) -> Tuple[optax.GradientTransformation, flax.core.frozen_dict.FrozenDict,
             Dict[str, float], float]:
     """
         Train the model for one step.
@@ -61,6 +63,7 @@ def train_step(
     """
     # Split the rng for dropout regularization and shake regularization.
     dropout_rng, shake_rng = jax.random.split(prng_key, 2)
+    params = variables.pop('params')
 
     def forward_and_loss(params: flax.core.frozen_dict.FrozenDict,
                          true_gradient = False) \
@@ -91,20 +94,20 @@ def train_step(
         # common models.
         if true_gradient:
             logits, new_state = apply_fn(
-                variables = {"params":params, **state},
+                variables = {**variables, 'params': params},
                 inputs = batch['image'],
                 train = True,
                 rngs = dict(dropout = dropout_rng, shake = shake_rng),
-                mutable = list(state.keys()),
+                mutable = ['batch_stats'],
                 true_gradient = true_gradient
             )
         else:
             logits, new_state = apply_fn(
-                variables = {"params":params, **state},
+                variables = {**variables, 'params': params},
                 inputs = batch['image'],
                 train = True,
                 rngs = dict(dropout = dropout_rng, shake = shake_rng),
-                mutable = list(state.keys()),
+                mutable = list(variables.keys()),
             ) 
 
         # Calculate the cross entropy loss. If needed, change it to other loss
@@ -168,7 +171,7 @@ def train_step(
         # Compute the dual norm.
         grad = utli.dual_vector(grad)
         # Get the perturbed model theta = theta + r * g1/||g1||_2
-        noised_model = jax.tree_multimap(lambda a, b: a + r * b,
+        noised_model = jax.tree_map(lambda a, b: a + r * b,
                                         params, grad)
         # Get the gradient at the perturbed model.
         (_, (_, logits)), grad_noised = jax.value_and_grad(
@@ -177,46 +180,43 @@ def train_step(
         # If this flag set true, the interplotation will be bewteen the normed
         # gradient at the reference model and the gradient at the perturbed model.
         if FLAGS.config.gnp.norm_perturbations:
-            g = jax.tree_multimap(lambda a, b: (1 - alpha) * a + alpha * b, grad, grad_noised)
+            g = jax.tree_map(lambda a, b: (1 - alpha) * a + alpha * b, grad, grad_noised)
         else:
-            g = jax.tree_multimap(lambda a, b: (1 - alpha) * a + alpha * b, grad_origial, grad_noised)
+            g = jax.tree_map(lambda a, b: (1 - alpha) * a + alpha * b, grad_origial, grad_noised)
         return (inner_state, logits), g
 
-    step = optimizer.state.step
-    lr = learning_rate_fn(step)
-    r = FLAGS.config.gnp.r
+    # r = FLAGS.config.gnp.r
     alpha = FLAGS.config.gnp.alpha
-
-    # Use standard training if r eqauls to 0.
+    # Use standard training if r equals to 0.
     if r != 0: 
-        (new_state, logits), grad = get_gnp_gradient(optimizer.target, r = r, alpha = alpha)
+        (new_state, logits), grad = get_gnp_gradient(params, r = r, alpha = alpha)
     else:
         (_, (new_state, logits)), grad = jax.value_and_grad(
             forward_and_loss, has_aux=True)(
-                optimizer.target)
+                params)
 
     # Average and Sync the gradient between all devices.
     grad = jax.lax.pmean(grad, 'batch')
     # Clip the gradient after being synchronized.
     grad = utli.clip_by_global_norm(grad)
     # Apply the gradient to optimizer to update parameters.
-    new_optimizer = optimizer.apply_gradient(grad, learning_rate=lr)
+    updates, new_opt_state = tx_update(grad, opt_state, params)
+    new_params = optax.apply_updates(params, updates)
+    new_variables = {**variables, **new_state, 'params': new_params}
     # Compute some metrics to log on tensorboard.
     gradient_norm = jnp.sqrt(sum(
         [jnp.sum(jnp.square(e)) for e in jax.tree_util.tree_leaves(grad)]))
     param_norm = jnp.sqrt(sum(
         [jnp.sum(jnp.square(e)) for e in jax.tree_util.tree_leaves(
-            new_optimizer.target)]))
+            new_params)]))
     metrics = {'train_error_rate': utli.error_rate_metric(logits, batch['label']),
                 'train_loss': utli.cross_entropy_loss(logits, batch['label']),
                 'gradient_norm': gradient_norm,
                 'param_norm': param_norm}
 
-    return new_optimizer, new_state, metrics, lr
+    return new_opt_state, new_variables, metrics, opt_state.hyperparams['learning_rate']
 
-
-def eval_step(params: flax.core.frozen_dict.FrozenDict,
-              state: flax.core.frozen_dict.FrozenDict,
+def eval_step(variables: flax.core.frozen_dict.FrozenDict,
               batch: Dict[str, jnp.ndarray],
               apply_fn : Callable[[jnp.ndarray], jnp.ndarray])\
                -> Dict[str, float]:
@@ -235,13 +235,13 @@ def eval_step(params: flax.core.frozen_dict.FrozenDict,
             metrics : the computed evaluation metrics that will be recorded in
               tensorboard.
     """
-
+    params = variables.pop("params")
     # Average and Sync the state between all devices. 
-    state = jax.lax.pmean(state, 'batch')
+    variables = jax.lax.pmean(variables, 'batch')
     # Compute the predicted logits based on the parameters and state. During
     # evaluation, all the parameters and states will be inmuatble.
     logits = apply_fn(
-        variables = {"params" : params, **state},
+        variables = {"params" : params, **variables},
         train = False,
         mutable = False,
         inputs = batch['image']
@@ -275,8 +275,7 @@ def eval_step(params: flax.core.frozen_dict.FrozenDict,
     return metrics
 
 
-def eval_on_dataset(param: flax.core.frozen_dict.FrozenDict,
-                    state: flax.core.frozen_dict.FrozenDict,
+def eval_on_dataset(variables: flax.core.frozen_dict.FrozenDict,
                     dataset : dataset_source.DatasetSource,
                     pmapped_eval_step : Callable[
                         [flax.core.frozen_dict.FrozenDict,
@@ -311,7 +310,7 @@ def eval_on_dataset(param: flax.core.frozen_dict.FrozenDict,
         # Shard the sample batches to fit the number of gpus.
         eval_batch = utli.shard_batch(eval_batch)
         # Evaluate for one batch.
-        metrics = pmapped_eval_step(param, state, eval_batch)
+        metrics = pmapped_eval_step(variables, eval_batch)
         # Collect the evaluation metrics.
         eval_metrics.append(metrics)
         # Tackle the samples that are unaligned to the number of devices.
@@ -335,7 +334,7 @@ def eval_on_dataset(param: flax.core.frozen_dict.FrozenDict,
 
 _Mapped_Train_Func = Callable[
     [
-        flax.optim.Optimizer,
+        optax.GradientTransformation,
         flax.core.frozen_dict.FrozenDict,
         Dict[str, jnp.ndarray],
         jnp.ndarray,
@@ -343,17 +342,18 @@ _Mapped_Train_Func = Callable[
         float,
         Callable[[jnp.ndarray], jnp.ndarray]
     ],
-        Tuple[flax.optim.Optimizer, flax.core.frozen_dict.FrozenDict,
+        Tuple[optax.GradientTransformation, flax.core.frozen_dict.FrozenDict,
                 Dict[str, float], float]
 ]
 
 def train_for_one_epoch(
-        optimizer: flax.optim.Optimizer,
-        state: flax.core.frozen_dict.FrozenDict,
+        opt_state: optax.GradientTransformation,
+        variables: flax.core.frozen_dict.FrozenDict,
         dataset_source : dataset_source.DatasetSource,
         prng_key: jnp.ndarray,
         pmapped_train_step : _Mapped_Train_Func,
-    ) -> Tuple[flax.optim.Optimizer, flax.core.frozen_dict.FrozenDict, Dict[str, float]]:
+        pmapped_standard_train_step : _Mapped_Train_Func = None,
+    ) -> Tuple[optax.GradientTransformation, flax.core.frozen_dict.FrozenDict, Dict[str, float]]:
 
     """
         Train the model on the given training dataset.
@@ -374,21 +374,34 @@ def train_for_one_epoch(
             train_summary : the computed evaluation metrics that will be recorded
               in tensorboard.
     """  
-
+    # if use hybrid training, we will create the prob function
+    create_prob_function = FLAGS.config.schedule_function(**FLAGS.config.hybrid_config)
     train_metrics = []
     # Start training on each sample batch.
     for batch in dataset_source.get_train(use_augmentations=True):
         # Generate a particular PRNG by combing the current training step.
-        step_key = jax.random.fold_in(prng_key, optimizer.state.step[0])
+        step_key = jax.random.fold_in(prng_key, int(opt_state.count[0]))
         # Convert the sample from tensorflow Dataset object to numpy.
         batch = utli.tensorflow_to_numpy(batch)
         # Shard the sample batches to fit the number of gpus.
         batch = utli.shard_batch(batch)
         # Shard the Prng such that each device would receive a unique key.
         sharded_keys = common_utils.shard_prng_key(step_key)
+
         # Training the sample batch.
-        optimizer, state, metrics, lr = pmapped_train_step(
-            optimizer, state, batch, sharded_keys)
+        if FLAGS.config.use_hybrid_training:
+            prob = create_prob_function(int(opt_state.count[0]))
+            r_flag = jax.random.bernoulli(step_key, prob)
+            if r_flag:
+                opt_state, variables, metrics, lr = pmapped_train_step(
+                    opt_state, variables, batch, sharded_keys)
+            else:
+                opt_state, variables, metrics, lr = pmapped_standard_train_step(
+                    opt_state, variables, batch, sharded_keys)
+        else:
+            opt_state, variables, metrics, lr = pmapped_train_step(
+                opt_state, variables, batch, sharded_keys)
+
         # Collect the training metric summaries from all devices.
         train_metrics.append(metrics)
     # Reduce the metrics in all devices to a single copy. 
@@ -396,5 +409,7 @@ def train_for_one_epoch(
     # Average the training summaries within this epoch.
     train_summary = jax.tree_map(lambda x: x.mean(), train_metrics)
     train_summary['learning_rate'] = lr[0]
+    if FLAGS.config.use_hybrid_training:
+        train_summary['probability'] = prob
 
-    return optimizer, state, train_summary
+    return opt_state, variables, train_summary

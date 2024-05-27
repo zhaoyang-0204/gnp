@@ -65,8 +65,10 @@ def init_image_model(
 	variables = module.init(
 		prng_key, dummy_input, train = False
 	)
-	state, params = variables.pop("params")
-	return params, state
+	# print(variables.keys())
+	# params = variables.pop("params")
+	# state = variables.pop("batch_stats")
+	return variables
 
 
 def get_model(
@@ -110,8 +112,8 @@ def get_model(
 	else:
 		prng_key = random.PRNGKey(init_seeds)
 	
-	params, init_state = init_image_model(
+	variables = init_image_model(
 		prng_key, batch_size, image_size, model, num_channels
 	)
 
-	return model, params, init_state
+	return model, variables

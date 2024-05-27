@@ -24,12 +24,13 @@ import os
 from tensorflow.io import gfile
 from absl import flags
 from typing import Optional, Tuple
+import optax
 
 FLAGS = flags.FLAGS
 
 
-def restore_checkpoint(optimizer : flax.optim.Optimizer,
-                       state : flax.core.frozen_dict.FrozenDict,
+def restore_checkpoint(opt_state : optax.GradientTransformation,
+                       variables : flax.core.frozen_dict.FrozenDict,
                        directory : str) \
                        -> Tuple[flax.core.frozen_dict.FrozenDict,
                             flax.core.frozen_dict.FrozenDict, int]:
@@ -47,15 +48,15 @@ def restore_checkpoint(optimizer : flax.optim.Optimizer,
             A tuple that includes the resumed optimizer, state and epoch.
     """
 
-    train_state = dict(optimizer=optimizer, model_state=state, epoch=0)
+    train_state = dict(opt_state=opt_state, variables=variables, epoch=0)
     restored_state = checkpoints.restore_checkpoint(directory, train_state)
-    return (restored_state['optimizer'],
-            restored_state['model_state'],
+    return (restored_state['opt_state'],
+            restored_state['variables'],
             restored_state['epoch'])
 
 
-def save_checkpoint(optimizer : flax.optim.Optimizer,
-                    state : flax.core.frozen_dict.FrozenDict,
+def save_checkpoint(opt_state : optax.GradientTransformation,
+                    variables : flax.core.frozen_dict.FrozenDict,
                     directory : str,
                     epoch : int,
                     keep : Optional[int] = 2):
@@ -73,9 +74,9 @@ def save_checkpoint(optimizer : flax.optim.Optimizer,
     """
 
     # Get one copy of optimizer and state from all the devices.
-    optimizer = jax.tree_map(lambda x: x[0], optimizer)
-    model_state = jax.tree_map(lambda x: jnp.mean(x, axis=0), state)
-    train_state = dict(optimizer=optimizer, model_state=model_state, epoch=epoch)
+    opt_state = jax.tree_map(lambda x: x[0], opt_state)
+    variables = jax.tree_map(lambda x: jnp.mean(x, axis=0), variables)
+    train_state = dict(opt_state=opt_state, variables=variables, epoch=epoch)
     if gfile.exists(os.path.join(directory, 'checkpoint_' + str(epoch))):
         gfile.remove(os.path.join(directory, 'checkpoint_' + str(epoch)))
     checkpoints.save_checkpoint(directory, train_state, epoch, keep=keep)
@@ -237,7 +238,7 @@ def clip_by_global_norm(x : flax.core.frozen_dict.FrozenDict) \
     if FLAGS.config.gradient_clipping > 0:
         g_norm = global_norm(x)
         trigger = g_norm < FLAGS.config.gradient_clipping
-        x_clipped = jax.tree_multimap(
+        x_clipped = jax.tree_util.tree_map(
             lambda t: jnp.where(trigger, t, (t / g_norm) * FLAGS.config.gradient_clipping),
             x)
     return x_clipped

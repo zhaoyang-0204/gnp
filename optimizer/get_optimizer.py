@@ -17,7 +17,8 @@
 """
 
 from absl import flags
-from flax import optim
+# from flax import optax
+import optax
 import flax
 from gnp.optimizer.Adam_class import AdamOptimizer
 from gnp.optimizer.SGD_class import SGDOptimizer
@@ -35,7 +36,7 @@ def manage_optimizer_config() -> None:
     opt_flags = flags.FLAGS.config.opt
     _AVAILABLE_FLAGS = dict(
         SGD = ("beta", "grad_norm_clip", "weight_decay", "nesterov"),
-        Momentum = ("beta", "weight_decay", "nesterov"),
+        Momentum = ("beta", "nesterov"),
         Adam = ("beta1", "beta2", "eps", "weight_decay", "grad_norm_clip")
     )
     assert opt_flags.opt_type in _AVAILABLE_FLAGS.keys()
@@ -48,14 +49,15 @@ def manage_optimizer_config() -> None:
     if opt_flags.opt_type in ("SGD", "Momentum"):
         # We set weight decay in SGD optimizer to 0, since it will be
         # re-implemented during training.
-        opt_flags.opt_params.weight_decay = 0.0
+        # opt_flags.opt_params.weight_decay = 0.0
+        pass
 
     flags.FLAGS.config.lock()
 
 
-def get_optimizer(params : flax.core.frozen_dict.FrozenDict,
+def get_optimizer(
                  learning_rate: float,
-                 ) -> flax.optim.Optimizer :
+                 ) -> optax.GradientTransformation :
     """
         Get optimizer instance. If you would like to define your custom
           optimizer, you could write an optimizer py file in this folder and
@@ -74,11 +76,12 @@ def get_optimizer(params : flax.core.frozen_dict.FrozenDict,
     if FLAGS.config.opt.opt_type == "SGD":
         optimizer_def = SGDOptimizer(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
     elif FLAGS.config.opt.opt_type == "Momentum":
-        optimizer_def = optim.Momentum(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
+        # optimizer_def = optax.Momentum(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
+        optimizer_def = optax.inject_hyperparams(optax.sgd)
     elif FLAGS.config.opt.opt_type == "Adam":
         optimizer_def = AdamOptimizer(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
     else:
         raise ValueError("Unkown optimizer type, {FLAGS.config.opt.opt_type} !")
 
-    optimizer = optimizer_def.create(params)
-    return optimizer
+    # optimizer = optimizer_def.init(params)
+    return optimizer_def

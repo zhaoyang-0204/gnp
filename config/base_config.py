@@ -82,6 +82,12 @@ def get_basic_config() -> ml_collections.ConfigDict:
     config.gnp.norm_perturbations = True
     config.gnp.sync_perturbations = False
 
+    # hybrid training flags.
+    config.use_hybrid_training = False
+    config.schedule_function = schedule_function
+    config.hybrid_config = ml_collections.ConfigDict()
+    config.hybrid_config.p = 0.
+
     # retain : if true, delete the exist model and train from the start.
     config.retrain = False
 
@@ -96,9 +102,9 @@ def get_basic_config() -> ml_collections.ConfigDict:
     config.use_test_set=True
     config.use_additional_skip_connections_in_wrn = False
     config.no_weight_decay_on_bn = False
-    config.tfds_dir = "/home/zhaoyang0204/dataset/tensorflow_datasets"
-    config.imagenet_train_dir = "/home/zhaoyang0204/dataset/imagenet/imagenet_train"
-    config.imagenet_val_dir = "/home/zhaoyang0204/dataset/imagenet/imagenet_val"
+    config.tfds_dir = "/raid/zy/datasets/tensorflow_datasets"
+    config.imagenet_train_dir = "/raid/zy/datasets/imagenet/train"
+    config.imagenet_val_dir = "/raid/zy/datasets/imagenet/val"
 
     return config.lock()
 
@@ -138,7 +144,7 @@ def get_optimizer_config() -> ml_collections.ConfigDict:
     config.opt_type = "SGD"
     config.opt_params = ml_collections.ConfigDict()
     config.opt_params.nesterov = True
-    config.opt_params.grad_norm_clip = 2.0
+    config.opt_params.grad_norm_clip = 5.0
     config.opt_params.weight_decay = 0.3
 
     return config
@@ -171,3 +177,8 @@ def get_model_config() -> ml_collections.ConfigDict:
     # config.model_params.transformer.dropout_rate = 0.0
     
     return config
+
+def schedule_function(p):
+    def prob_func(step):
+        return p
+    return prob_func

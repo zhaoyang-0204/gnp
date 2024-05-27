@@ -21,6 +21,35 @@ import jax
 import math
 from flax.training import lr_schedule
 from typing import Optional, List, Callable
+import optax
+
+def get_lr_schedule(lr_schedule_type : str,
+                    base_lr : float,
+                    num_epochs : int,
+                    num_trainig_samples : int,
+                    batch_size : int,
+                    warmup_epochs : Optional[int] = 0,
+                    ):
+    _AVAILABLE_LR_SCHEDULE = (
+        "constant", "stepped", "cosine", "exponential",
+    )
+    if lr_schedule_type not in _AVAILABLE_LR_SCHEDULE:
+        lr_schedule_type = "constant"    
+
+    steps_per_epoch = int(math.floor(num_trainig_samples / batch_size))
+
+    if lr_schedule_type == "cosine":
+        schedule = optax.warmup_cosine_decay_schedule(
+                    init_value = 0,
+                    peak_value = base_lr,
+                    decay_steps = num_epochs * steps_per_epoch,
+                    warmup_steps = warmup_epochs * steps_per_epoch,
+                    )
+    else:
+        schedule = base_lr
+
+    return schedule
+
 
 def get_learning_schedule(lr_schedule_type : str,
                           base_lr : float,

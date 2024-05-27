@@ -66,7 +66,7 @@ def main(_):
     ds = get_dataset_pipeline()
 
     # Get model instance.
-    model, params, state = load_model.get_model(FLAGS.config.model.model_name,
+    model, variables = load_model.get_model(FLAGS.config.model.model_name,
                                                 FLAGS.config.batch_size,
                                                 FLAGS.config.dataset.image_size,
                                                 FLAGS.config.dataset.num_classes,
@@ -75,12 +75,12 @@ def main(_):
 
     # Get optimizer instance. We will always generate a learning rate schedule
     # later, so here it is safe to set learning rate to 0 or any value else.
-    optimizer = get_optimizer(params, 0.0)
+    optimizer = get_optimizer(0.)
 
     # Start training.
     training.train(model,
                    optimizer,
-                   state,
+                   variables,
                    ds,
                    FLAGS.config.model_folder,
                    FLAGS.config.total_epochs)

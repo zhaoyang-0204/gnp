@@ -100,4 +100,7 @@ def write_config_to_json(model_folder_name : str) -> None:
     if config.write_config_to_json:
         logger.info(f"Writing json to the model foler ...")
         with open(os.path.join(model_folder_name, "config.json"), "w") as f:
-            json.dump(config.to_json(), f)
+            try:
+                json.dump(config.ConfigDict.to_json_best_effort(), f)
+            except:
+                logger.info("Can not convert to json.")

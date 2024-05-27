@@ -73,7 +73,7 @@ def get_dataset_pipeline():
             FLAGS.config.dataset.image_size = 32
             FLAGS.config.dataset.num_channels = 3
             FLAGS.config.dataset.num_classes = 10 if FLAGS.config.dataset.dataset_name == 'cifar10' else 100
-    elif FLAGS.config.dataset.dataset_name == 'imagenet':   
+    elif FLAGS.config.dataset.dataset_name == 'imagenet':
         FLAGS.config.dataset.num_channels = 3
         FLAGS.config.dataset.num_classes = 1000
     else:

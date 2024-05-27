@@ -18,14 +18,15 @@ import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
 
 
-class SGDOptimizer(flax.optim.OptimizerDef):
+class SGDOptimizer(optax.GradientTransformation):
     """
         SGD optimizer with gradient norm. If you would like to perform
           gradient clip outside the optimizer or not likely to change the
           mechanism inside the optimizer, you could use the official
-          optim.Momentum instead.
+          optax.Momentum instead.
     """
 
     @flax.struct.dataclass
@@ -71,7 +72,7 @@ class SGDOptimizer(flax.optim.OptimizerDef):
         new_params_flat, new_states_flat = list(zip(*out)) if out else ((), ())
         new_params = jax.tree_unflatten(treedef, new_params_flat)
         new_param_states = jax.tree_unflatten(treedef, new_states_flat)
-        new_state = flax.optim.OptimizerState(step + 1, new_param_states)
+        new_state = optax.GradientTransformationState(step + 1, new_param_states)
         return new_params, new_state
 
     

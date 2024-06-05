@@ -36,8 +36,8 @@ def manage_optimizer_config() -> None:
     opt_flags = flags.FLAGS.config.opt
     _AVAILABLE_FLAGS = dict(
         SGD = ("beta", "grad_norm_clip", "weight_decay", "nesterov"),
-        Momentum = ("beta", "nesterov"),
-        Adam = ("beta1", "beta2", "eps", "weight_decay", "grad_norm_clip")
+        Momentum = ("beta", "nesterov", "momentum"),
+        Adam = ("beta1", "beta2", "eps", "weight_decay")
     )
     assert opt_flags.opt_type in _AVAILABLE_FLAGS.keys()
 
@@ -56,7 +56,6 @@ def manage_optimizer_config() -> None:
 
 
 def get_optimizer(
-                 learning_rate: float,
                  ) -> optax.GradientTransformation :
     """
         Get optimizer instance. If you would like to define your custom
@@ -73,13 +72,11 @@ def get_optimizer(
             optimizer : the optimizer instance. 
     """
 
-    if FLAGS.config.opt.opt_type == "SGD":
-        optimizer_def = SGDOptimizer(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
-    elif FLAGS.config.opt.opt_type == "Momentum":
+    if FLAGS.config.opt.opt_type == "SGD" or FLAGS.config.opt.opt_type == "Momentum":
         # optimizer_def = optax.Momentum(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
         optimizer_def = optax.inject_hyperparams(optax.sgd)
     elif FLAGS.config.opt.opt_type == "Adam":
-        optimizer_def = AdamOptimizer(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
+        optimizer_def = optax.inject_hyperparams(optax.adamw)
     else:
         raise ValueError("Unkown optimizer type, {FLAGS.config.opt.opt_type} !")
 

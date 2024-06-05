@@ -33,6 +33,7 @@ def train_step(
         variables: flax.core.frozen_dict.FrozenDict,
         batch: Dict[str, jnp.ndarray],
         prng_key: jnp.ndarray,
+        warmup_strategy_fn : Callable[[float], float],
         l2_reg: float,
         r : float,
         apply_fn : Callable[[jnp.ndarray], jnp.ndarray],
@@ -62,7 +63,7 @@ def train_step(
             lr : the current learning rate.
     """
     # Split the rng for dropout regularization and shake regularization.
-    dropout_rng, shake_rng = jax.random.split(prng_key, 2)
+    dropout_rng, shake_rng, dp_rng = jax.random.split(prng_key, 3)
     params = variables.pop('params')
 
     def forward_and_loss(params: flax.core.frozen_dict.FrozenDict,
@@ -97,7 +98,7 @@ def train_step(
                 variables = {**variables, 'params': params},
                 inputs = batch['image'],
                 train = True,
-                rngs = dict(dropout = dropout_rng, shake = shake_rng),
+                rngs = dict(dropout = dropout_rng, shake = shake_rng, drop_path=dp_rng),
                 mutable = ['batch_stats'],
                 true_gradient = true_gradient
             )
@@ -106,7 +107,7 @@ def train_step(
                 variables = {**variables, 'params': params},
                 inputs = batch['image'],
                 train = True,
-                rngs = dict(dropout = dropout_rng, shake = shake_rng),
+                rngs = dict(dropout = dropout_rng, shake = shake_rng, drop_path=dp_rng),
                 mutable = list(variables.keys()),
             ) 
 
@@ -185,10 +186,19 @@ def train_step(
             g = jax.tree_map(lambda a, b: (1 - alpha) * a + alpha * b, grad_origial, grad_noised)
         return (inner_state, logits), g
 
+    step = opt_state.count
     # r = FLAGS.config.gnp.r
     alpha = FLAGS.config.gnp.alpha
     # Use standard training if r equals to 0.
-    if r != 0: 
+    if r > 0:
+        if FLAGS.config.gr_warmup_strategy == "r":
+            # \alpha = \lambda / r
+            # \alpha unchanged, r warmup, \lambda warmup
+            r = warmup_strategy_fn(FLAGS.config.gnp.r, step)
+        if FLAGS.config.gr_warmup_strategy == "lambda":
+            # \alpha warmup, r unchanged, \lambda warmup
+            alpha = warmup_strategy_fn(FLAGS.config.gnp.alpha, step)
+
         (new_state, logits), grad = get_gnp_gradient(params, r = r, alpha = alpha)
     else:
         (_, (new_state, logits)), grad = jax.value_and_grad(
@@ -351,6 +361,7 @@ def train_for_one_epoch(
         variables: flax.core.frozen_dict.FrozenDict,
         dataset_source : dataset_source.DatasetSource,
         prng_key: jnp.ndarray,
+        epochs_id : int,
         pmapped_train_step : _Mapped_Train_Func,
         pmapped_standard_train_step : _Mapped_Train_Func = None,
     ) -> Tuple[optax.GradientTransformation, flax.core.frozen_dict.FrozenDict, Dict[str, float]]:
@@ -388,19 +399,23 @@ def train_for_one_epoch(
         # Shard the Prng such that each device would receive a unique key.
         sharded_keys = common_utils.shard_prng_key(step_key)
 
-        # Training the sample batch.
-        if FLAGS.config.use_hybrid_training:
-            prob = create_prob_function(int(opt_state.count[0]))
-            r_flag = jax.random.bernoulli(step_key, prob)
-            if r_flag:
+        if FLAGS.config.gr_warmup_strategy == "zero" and epochs_id < FLAGS.config.warmup_epochs:
+            opt_state, variables, metrics, lr = pmapped_standard_train_step(
+                opt_state, variables, batch, sharded_keys)
+        else:
+            # Training the sample batch.
+            if FLAGS.config.use_hybrid_training:
+                prob = create_prob_function(int(opt_state.count[0]))
+                r_flag = jax.random.bernoulli(step_key, prob)
+                if r_flag:
+                    opt_state, variables, metrics, lr = pmapped_train_step(
+                        opt_state, variables, batch, sharded_keys)
+                else:
+                    opt_state, variables, metrics, lr = pmapped_standard_train_step(
+                        opt_state, variables, batch, sharded_keys)
+            else:
                 opt_state, variables, metrics, lr = pmapped_train_step(
                     opt_state, variables, batch, sharded_keys)
-            else:
-                opt_state, variables, metrics, lr = pmapped_standard_train_step(
-                    opt_state, variables, batch, sharded_keys)
-        else:
-            opt_state, variables, metrics, lr = pmapped_train_step(
-                opt_state, variables, batch, sharded_keys)
 
         # Collect the training metric summaries from all devices.
         train_metrics.append(metrics)

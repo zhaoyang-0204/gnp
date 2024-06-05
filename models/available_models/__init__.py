@@ -19,3 +19,5 @@ import gnp.models.available_models.wrn_shakeshake
 import gnp.models.available_models.pyramidnet
 import gnp.models.available_models.pyramidnet_shakedrop
 import gnp.models.available_models.vit_model
+import gnp.models.available_models.swin_transformer
+import gnp.models.available_models.cait

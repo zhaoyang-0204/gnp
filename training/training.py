@@ -73,7 +73,14 @@ def train(model : flax.linen.Module,
         warmup_epochs = FLAGS.config.warmup_epochs,
     )
 
-    optimizer = optimizer(learning_rate=schedule, momentum=0.9, **FLAGS.config.opt.opt_params)
+    # Get warmup strategy function
+    warmup_strategy_fn = utli.generate_warmup_fn(
+        num_trainig_samples = dataset_source.num_training_obs,
+        batch_size = dataset_source.batch_size,
+        warmup_epochs = FLAGS.config.warmup_epochs,
+    )
+
+    optimizer = optimizer(learning_rate=schedule, **FLAGS.config.opt.opt_params)
     opt_state = optimizer.init(variables['params'])
 
         # Check and launch previous saved latest checkpoint with the 
@@ -109,6 +116,7 @@ def train(model : flax.linen.Module,
         functools.partial(
             training_core.train_step,
             l2_reg=FLAGS.config.l2_regularization,
+            warmup_strategy_fn = warmup_strategy_fn,
             r = FLAGS.config.gnp.r,
             apply_fn = model.apply,
             tx_update = optimizer.update),
@@ -118,11 +126,12 @@ def train(model : flax.linen.Module,
         functools.partial(
             training_core.train_step,
             l2_reg=FLAGS.config.l2_regularization,
+            warmup_strategy_fn = warmup_strategy_fn,
             r = 0.0,
             apply_fn = model.apply,
             tx_update = optimizer.update),
         axis_name='batch',
-        donate_argnums=(0, 1)) if FLAGS.config.use_hybrid_training else None
+        donate_argnums=(0, 1)) if FLAGS.config.use_hybrid_training or FLAGS.config.gr_warmup_strategy == "zero" else None
     pmapped_eval_step = jax.pmap(
         functools.partial(
             training_core.eval_step,
@@ -138,7 +147,7 @@ def train(model : flax.linen.Module,
         info = f"[Epoch {epochs_id}] Training the {epochs_id}th epoch. Please wait..."
         logging.info(info)
         opt_state, variables, train_summary = training_core.train_for_one_epoch(
-                opt_state, variables, dataset_source, prng_key,
+                opt_state, variables, dataset_source, prng_key, epochs_id,
                 pmapped_train_step,
                 pmapped_standard_train_step
             )

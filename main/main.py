@@ -75,7 +75,7 @@ def main(_):
 
     # Get optimizer instance. We will always generate a learning rate schedule
     # later, so here it is safe to set learning rate to 0 or any value else.
-    optimizer = get_optimizer(0.)
+    optimizer = get_optimizer()
 
     # Start training.
     training.train(model,

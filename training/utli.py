@@ -25,6 +25,7 @@ from tensorflow.io import gfile
 from absl import flags
 from typing import Optional, Tuple
 import optax
+import math
 
 FLAGS = flags.FLAGS
 
@@ -284,3 +285,18 @@ def asam_vector(w : flax.core.frozen_dict.FrozenDict,
         [jnp.sum(jnp.square(e)) for e in jax.tree_util.tree_leaves(Tw_g)]))
     asam_gradient = jax.tree_map(lambda x: x / gradient_norm, Tw2_g)
     return asam_gradient
+
+
+def generate_warmup_fn(
+                    num_trainig_samples : int,
+                    batch_size : int,
+                    warmup_epochs : Optional[int] = 0,
+                    ):
+    steps_per_epoch = int(math.floor(num_trainig_samples / batch_size))
+    def fn(base_value, step):
+        r = base_value
+        if warmup_epochs>0:
+            r = base_value * jnp.minimum(1, step / \
+                (steps_per_epoch * warmup_epochs))
+        return r
+    return fn

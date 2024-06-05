@@ -18,7 +18,7 @@
 """
 
 import ml_collections
-
+from ml_collections import config_dict
 
 def get_basic_config() -> ml_collections.ConfigDict:
     """
@@ -82,6 +82,8 @@ def get_basic_config() -> ml_collections.ConfigDict:
     config.gnp.norm_perturbations = True
     config.gnp.sync_perturbations = False
 
+    config.gr_warmup_strategy = "none"
+
     # hybrid training flags.
     config.use_hybrid_training = False
     config.schedule_function = schedule_function
@@ -144,6 +146,7 @@ def get_optimizer_config() -> ml_collections.ConfigDict:
     config.opt_type = "SGD"
     config.opt_params = ml_collections.ConfigDict()
     config.opt_params.nesterov = True
+    config.opt_params.momentum=0.9
     config.opt_params.grad_norm_clip = 5.0
     config.opt_params.weight_decay = 0.3
 

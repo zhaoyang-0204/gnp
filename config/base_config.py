@@ -82,6 +82,8 @@ def get_basic_config() -> ml_collections.ConfigDict:
     config.gnp.norm_perturbations = True
     config.gnp.sync_perturbations = False
 
+    # gnp warmup strategy, which warms up the gradient regularization effect at the initial training stage. See paper for details.
+    # valid strategies for gr warmup {"r", "lambda", "zero"}.
     config.gr_warmup_strategy = "none"
 
     # hybrid training flags.

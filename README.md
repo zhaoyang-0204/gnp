@@ -1,4 +1,4 @@
-# Penalizing Gradient Norm in Deep Learning
+# Gradient Regularization in Deep Learning
 
 This is our work at ICML2022, which entitles "[Penalizing Gradient Norm for Efficiently Improving Generalization in Deep Learning](https://arxiv.org/abs/2202.03599)", by Yang Zhao, Hao Zhang and Xiuyuan Hu.
 
@@ -29,7 +29,7 @@ $$\begin{split}
     & = (1 - \frac{\lambda}{r}) \nabla_{\theta} L_{\mathcal{S}}(\theta) + \frac{\lambda}{r} \cdot \nabla_{\theta}L_\mathcal{S}(\theta +r\frac{\nabla_{\theta}L_{\mathcal{S}}(\theta)}{||\nabla_{\theta}L_{\mathcal{S}}(\theta)||})
 \end{split}$$
  
-where <img src="https://render.githubusercontent.com/render/math?math=r"> is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient  and the other one for <img src="https://render.githubusercontent.com/render/math?math=r">. For practical convenience, we will further set,
+where <img src="https://render.githubusercontent.com/render/math?math=r"> is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient and the other one for <img src="https://render.githubusercontent.com/render/math?math=r">. For practical convenience, we will further set,
 
 $$\begin{split}
  \nabla_{\theta} L(\theta) = (1 - \alpha) \nabla_{\theta} L_{\mathcal{S}}(\theta) + \alpha \cdot \nabla_{\theta}L_\mathcal{S}(\theta +r\frac{\nabla_{\theta}L_{\mathcal{S}}(\theta)}{||\nabla_{\theta}L_{\mathcal{S}}(\theta)||}), ~~~\alpha = \frac{\lambda}{r}

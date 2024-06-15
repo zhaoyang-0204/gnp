@@ -19,9 +19,6 @@
 from absl import flags
 # from flax import optax
 import optax
-import flax
-from gnp.optimizer.Adam_class import AdamOptimizer
-from gnp.optimizer.SGD_class import SGDOptimizer
 
 FLAGS = flags.FLAGS
 
@@ -73,12 +70,10 @@ def get_optimizer(
     """
 
     if FLAGS.config.opt.opt_type == "SGD" or FLAGS.config.opt.opt_type == "Momentum":
-        # optimizer_def = optax.Momentum(learning_rate=learning_rate, **FLAGS.config.opt.opt_params)
         optimizer_def = optax.inject_hyperparams(optax.sgd)
     elif FLAGS.config.opt.opt_type == "Adam":
         optimizer_def = optax.inject_hyperparams(optax.adamw)
     else:
         raise ValueError("Unkown optimizer type, {FLAGS.config.opt.opt_type} !")
 
-    # optimizer = optimizer_def.init(params)
     return optimizer_def

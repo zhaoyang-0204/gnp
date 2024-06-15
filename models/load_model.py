@@ -24,7 +24,7 @@
 		"PyramidNet Family" : ("PyramidNet_164_48", "PyramidNet_164_270",
                                "PyramidNet_200_240", "PyramidNet_272_200",
                                "PyramidNet_164_48_ShakeDrop",
-                               "PyramidNet_272_200_ShakeDrop")
+                               "PyramidNet_272_200_ShakeDrop"),
         "ViT Family" : ("ViT_TI16", "ViT_S16", "ViT_B16", "ViT_L16")
 	}
 
@@ -65,9 +65,6 @@ def init_image_model(
 	variables = module.init(
 		prng_key, dummy_input, train = False
 	)
-	# print(variables.keys())
-	# params = variables.pop("params")
-	# state = variables.pop("batch_stats")
 	return variables
 
 

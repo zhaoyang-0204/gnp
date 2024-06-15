@@ -69,6 +69,7 @@ def create_model_folder() -> str:
                                 f"grad_clip_{config.gradient_clipping}",
                                 f"opt_{config.opt.opt_type}",
                                 f"warmup_epochs_{config.warmup_epochs}",
+                                f"gr_warmup_strategy_{config.gr_warmup_strategy}",
                                 f"r_{config.gnp.r}",
                                 f"alpha_{config.gnp.alpha}",
                                 f"epoch_{config.total_epochs}",

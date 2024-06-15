@@ -292,6 +292,16 @@ def generate_warmup_fn(
                     batch_size : int,
                     warmup_epochs : Optional[int] = 0,
                     ):
+    """
+        Creates the gradient regularization warmup strategy function. The function will modulate the gradient regularization effect by a linear pattern going from 0 initially to 1 after warmup_epochs epochs.
+
+        Args:
+            num_trainig_samples : Number of training observations.
+            batch_size : Total batch size (number of samples seen per gradient step).
+            warmup_epochs : Number of warmup epoch. 
+        Returns:
+            fn : the gr warmup function.
+    """ 
     steps_per_epoch = int(math.floor(num_trainig_samples / batch_size))
     def fn(base_value, step):
         r = base_value

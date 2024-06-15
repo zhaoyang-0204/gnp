@@ -73,8 +73,7 @@ def main(_):
                                                 FLAGS.config.dataset.num_channels,
                                                 FLAGS.config.init_seeds)
 
-    # Get optimizer instance. We will always generate a learning rate schedule
-    # later, so here it is safe to set learning rate to 0 or any value else.
+    # Get optimizer instance. 
     optimizer = get_optimizer()
 
     # Start training.

@@ -73,7 +73,7 @@ def train(model : flax.linen.Module,
         warmup_epochs = FLAGS.config.warmup_epochs,
     )
 
-    # Get warmup strategy function
+    # Get gradient warmup strategy function
     warmup_strategy_fn = utli.generate_warmup_fn(
         num_trainig_samples = dataset_source.num_training_obs,
         batch_size = dataset_source.batch_size,
@@ -83,7 +83,7 @@ def train(model : flax.linen.Module,
     optimizer = optimizer(learning_rate=schedule, **FLAGS.config.opt.opt_params)
     opt_state = optimizer.init(variables['params'])
 
-        # Check and launch previous saved latest checkpoint with the 
+    # Check and launch previous saved latest checkpoint with the 
     # same config deployments.
     if gfile.exists(checkpoint_dir):
         opt_state, variables, epoch_last_checkpoint = utli.restore_checkpoint(
@@ -101,7 +101,6 @@ def train(model : flax.linen.Module,
     else:
         initial_epoch = jnp.array(0, dtype=jnp.int32)
         logging.info("Starting training from scratch.")
-
 
     opt_state = jax_utils.replicate(opt_state)
     # Replicate the optimizer and state to each available devices.

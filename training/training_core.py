@@ -62,7 +62,7 @@ def train_step(
             metrics : the computed metrics that will be recorded in tensorboard.
             lr : the current learning rate.
     """
-    # Split the rng for dropout regularization and shake regularization.
+    # Split the rng for dropout regularization, shake regularization and dp_rng.
     dropout_rng, shake_rng, dp_rng = jax.random.split(prng_key, 3)
     params = variables.pop('params')
 
@@ -189,8 +189,11 @@ def train_step(
     step = opt_state.count
     # r = FLAGS.config.gnp.r
     alpha = FLAGS.config.gnp.alpha
+
     # Use standard training if r equals to 0.
     if r > 0:
+
+        # Perform gradient regularization warmup strategy
         if FLAGS.config.gr_warmup_strategy == "r":
             # \alpha = \lambda / r
             # \alpha unchanged, r warmup, \lambda warmup
@@ -222,7 +225,9 @@ def train_step(
     metrics = {'train_error_rate': utli.error_rate_metric(logits, batch['label']),
                 'train_loss': utli.cross_entropy_loss(logits, batch['label']),
                 'gradient_norm': gradient_norm,
-                'param_norm': param_norm}
+                'param_norm': param_norm,
+                'alpha': alpha,
+                'r': r}
 
     return new_opt_state, new_variables, metrics, opt_state.hyperparams['learning_rate']
 
@@ -350,6 +355,7 @@ _Mapped_Train_Func = Callable[
         jnp.ndarray,
         Callable[[int], float],
         float,
+        Callable[[jnp.ndarray], jnp.ndarray],
         Callable[[jnp.ndarray], jnp.ndarray]
     ],
         Tuple[optax.GradientTransformation, flax.core.frozen_dict.FrozenDict,
@@ -399,6 +405,7 @@ def train_for_one_epoch(
         # Shard the Prng such that each device would receive a unique key.
         sharded_keys = common_utils.shard_prng_key(step_key)
 
+        # Perform Zero gradient regularization warmup
         if FLAGS.config.gr_warmup_strategy == "zero" and epochs_id < FLAGS.config.warmup_epochs:
             opt_state, variables, metrics, lr = pmapped_standard_train_step(
                 opt_state, variables, batch, sharded_keys)

@@ -1,9 +1,9 @@
 # Gradient Regularization in Deep Learning
 
-### Work Related:
+### Works Related:
 
 1. "[Penalizing Gradient Norm for Efficiently Improving Generalization in Deep Learning](https://arxiv.org/abs/2202.03599)"[ICML2022], by Yang Zhao, Hao Zhang and Xiuyuan Hu.
-2. "[When Will Gradient Regularization Be Harmful?](https://arxiv.org/abs/2202.03599)"[ICML2024], by Yang Zhao, Hao Zhang and Xiuyuan Hu.
+2. "[When Will Gradient Regularization Be Harmful?](https://arxiv.org/abs/2406.09723)"[ICML2024], by Yang Zhao, Hao Zhang and Xiuyuan Hu.
 
 ### Upgrade [2024.6.15]:
 
@@ -56,7 +56,7 @@ L(\theta) = L_{\mathcal{S}}(\theta) + \lambda ||\nabla_{\theta} L_{\mathcal{S}}(
 Gradient norm is considered as a key property that could characterize the flatness of the loss surface. By penalizing the gradient norm, the optimization is encouraged to converge to flatter minima on the loss surface. This results in improved model generalization.
 
 
-##### 1.2 Practical Gradient Computation of Gradient Norm
+##### 2. Practical Gradient Computation of Gradient Norm
 
 Based on the chain rule, the gradient of the gradient norm is given by:
 
@@ -71,7 +71,7 @@ $$\begin{split}
     & = (1 - \frac{\lambda}{r}) \nabla_{\theta} L_{\mathcal{S}}(\theta) + \frac{\lambda}{r} \cdot \nabla_{\theta}L_\mathcal{S}(\theta +r\frac{\nabla_{\theta}L_{\mathcal{S}}(\theta)}{||\nabla_{\theta}L_{\mathcal{S}}(\theta)||})
 \end{split}$$
  
-where <img src="https://render.githubusercontent.com/render/math?math=r"> is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient and the other one for <img src="https://render.githubusercontent.com/render/math?math=r">. For practical convenience, we will further set,
+where $r$ is a small scalar value. So, we need to set two parameters for gradient norm penalty $\lambda$, one for the penalty coefficient and the other one for $r$. For practical convenience, we will further set,
 
 
 $$\begin{split}
@@ -82,13 +82,12 @@ $$\begin{split}
 Notably, the [SAM](https://github.com/google-research/sam) algorithm is a special implementation of this scheme where \(\alpha\) is always set to 1.
 
 
-##### 1.3 Practical Gradient Computation of Gradient Norm
+##### 3. **Be Careful** When using Gradient Regularization with Adaptive Optimizer
 
 
-### 3. End
 
-Corresponding results could be found in the paper. Currently, it only contains models trained from scratch on image classification tasks. We appreciate anyone that would share other results, report bugs or contribute in any way. Also, we will respond as soon as possible if anyone encountered any problem.
 
+### End
 
 If you find this helpful, you could cite the papers as
 ```

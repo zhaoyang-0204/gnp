@@ -73,6 +73,8 @@ def get_optimizer(
         optimizer_def = optax.inject_hyperparams(optax.sgd)
     elif FLAGS.config.opt.opt_type == "Adam":
         optimizer_def = optax.inject_hyperparams(optax.adamw)
+    elif FLAGS.config.opt.opt_type == "RMSProp":
+        optimizer_def = optax.inject_hyperparams(optax.rmsprop)
     else:
         raise ValueError("Unkown optimizer type, {FLAGS.config.opt.opt_type} !")
 

@@ -47,7 +47,7 @@
 
 ##### 1.Overview
 
-Basically, gradient regularization could be understood as gradient norm penalty, where an additional term regarding the gradient norm $||\nabla_{\theta} L(\theta)||_2$ will be added on top of the empirical loss,
+Basically, gradient regularization (GR) could be understood as gradient norm penalty, where an additional term regarding the gradient norm $||\nabla_{\theta} L(\theta)||_2$ will be added on top of the empirical loss,
 
 $$\begin{aligned}
 L(\theta) = L_{\mathcal{S}}(\theta) + \lambda ||\nabla_{\theta} L_{\mathcal{S}}(\theta)||_2
@@ -79,19 +79,28 @@ $$\begin{split}
 \end{split}$$
 
 
-Notably, the [SAM](https://github.com/google-research/sam) algorithm is a special implementation of this scheme where \(\alpha\) is always set to 1.
+Notably, the [SAM](https://github.com/google-research/sam) algorithm is a special implementation of this scheme where $\alpha$ is always set to 1.
 
 
 ##### 3. **Be Careful** When using Gradient Regularization with Adaptive Optimizer
 
+GR can lead to serious performance degeneration in the specific scenarios of adaptive optimization. 
 
+##### Error Rate[Cifar10]
+| Model | Adam | Adam + GR | Adam + GR + Zero-GR-Warmup
+|----------|----------|----------|----------|
+| ViT-Ti   | 14.82  | 13.92   | 13.61 |
+| ViT-S   | 12.07  | <span style="color:red">12.40</span> | **10.68** |
+| ViT-B   | 10.83  | <span style="color:red">12.36</span> | **9.42** |
 
+With both our empirical observations and theoretical analysis, we find that the biased estimation introduced in GR can induce the instability and divergence in gradient statistics of adaptive optimizers at the initial stage of training, especially with a learning rate warmup technique which originally aims to benefit gradient statistics.
+
+To mitigate this issue, we draw inspirations from the idea of warmup techniques, and propose three GR warmup strategies: $\lambda$-warmup, $r$-warmup and zero-warmup GR. See paper for details.
 
 ### End
 
 If you find this helpful, you could cite the papers as
 ```
-
 @inproceedings{zhao2022penalizing,
   title={Penalizing gradient norm for efficiently improving generalization in deep learning},
   author={Zhao, Yang and Zhang, Hao and Hu, Xiuyuan},
@@ -106,5 +115,3 @@ If you find this helpful, you could cite the papers as
   author={Zhao, Yang and Zhang, Hao and Hu, Xiuyuan},
   booktitle={Forty-first International Conference on Machine Learning}
 }
-
-

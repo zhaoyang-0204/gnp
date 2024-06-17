@@ -1,17 +1,23 @@
 # Gradient Regularization in Deep Learning
 
-### Works Related:
+## Table of Contents
+1. [Works Related](#works-related)
+2. [Upgrade [2024.6.15]](#upgrade-2024615)
+3. [Training using this repo](#training-using-this-repo)
+4. [Short intro](#short-intro)
+
+## Works Related
 
 1. "[Penalizing Gradient Norm for Efficiently Improving Generalization in Deep Learning](https://arxiv.org/abs/2202.03599)"[ICML2022], by Yang Zhao, Hao Zhang and Xiuyuan Hu.
 2. "[When Will Gradient Regularization Be Harmful?](https://arxiv.org/abs/2406.09723)"[ICML2024], by Yang Zhao, Hao Zhang and Xiuyuan Hu.
 
-### Upgrade [2024.6.15]:
+## Upgrade [2024.6.15]
 
 1. **JAX Framework Update**: Upgraded the training framework to the latest version (JAX 0.4.28).
 2. **New Paper Implementation**: Integrated the implementation of our latest research paper into this repository.
 3. **Additional Model Architectures:**: Included Swin and CaiT Transformer architectures in the model list.
 
-### Training using this repo
+## Training using this repo
 
 * **Environment Setup**: This repository is built using the JAX framework. Begin by setting up the Python environment specified in the `requirements.txt` file.
 
@@ -43,9 +49,9 @@
     ```
 
 
-### Short intro
+## Short intro
 
-##### 1.Overview
+#### 1.Overview
 
 Basically, gradient regularization (GR) could be understood as gradient norm penalty, where an additional term regarding the gradient norm $||\nabla_{\theta} L(\theta)||_2$ will be added on top of the empirical loss,
 
@@ -56,7 +62,7 @@ L(\theta) = L_{\mathcal{S}}(\theta) + \lambda ||\nabla_{\theta} L_{\mathcal{S}}(
 Gradient norm is considered as a key property that could characterize the flatness of the loss surface. By penalizing the gradient norm, the optimization is encouraged to converge to flatter minima on the loss surface. This results in improved model generalization.
 
 
-##### 2. Practical Gradient Computation of Gradient Norm
+#### 2. Practical Gradient Computation of Gradient Norm
 
 Based on the chain rule, the gradient of the gradient norm is given by:
 
@@ -82,7 +88,7 @@ $$\begin{split}
 Notably, the [SAM](https://github.com/google-research/sam) algorithm is a special implementation of this scheme where $\alpha$ is always set to 1.
 
 
-##### 3. **Be Careful** When using Gradient Regularization with Adaptive Optimizer
+#### 3. **Be Careful** When using Gradient Regularization with Adaptive Optimizer
 
 GR can lead to serious performance degeneration in the specific scenarios of adaptive optimization. 
 
@@ -97,7 +103,7 @@ With both our empirical observations and theoretical analysis, we find that the 
 
 To mitigate this issue, we draw inspirations from the idea of warmup techniques, and propose three GR warmup strategies: $\lambda$-warmup, $r$-warmup and zero-warmup GR. ach of the three strategies can relax the GR effect during warmup course in certain ways to ensure the accuracy of gradient statistics. See paper for details.
 
-### End
+## End
 
 If you find this helpful, you could cite the papers as
 ```

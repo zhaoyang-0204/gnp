@@ -1,10 +1,10 @@
 # Gradient Regularization in Deep Learning
 
 ## Table of Contents
-1. [Works Related](#works-related)
-2. [Upgrade [2024.6.15]](#upgrade-2024615)
-3. [Training using this repo](#training-using-this-repo)
-4. [Short intro](#short-intro)
+- [Works Related](#works-related)
+- [Upgrade [2024.6.15]](#upgrade-2024615)
+- [Training using this repo](#training-using-this-repo)
+- [Short intro](#short-intro)
 
 ## Works Related
 

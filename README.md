@@ -88,7 +88,7 @@ GR can lead to serious performance degeneration in the specific scenarios of ada
 
 ##### Error Rate[Cifar10]
 | Model | Adam | Adam + GR | Adam + GR + Zero-GR-Warmup
-|----------|:----------:||:----------:||:----------:|
+|----------|:----------:|:----------:|:----------:|
 | ViT-Ti   | 14.82  | 13.92   | 13.61 |
 | ViT-S   | 12.07  | <span style="color:red">12.40</span> | **10.68** |
 | ViT-B   | 10.83  | <span style="color:red">12.36</span> | **9.42** |

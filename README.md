@@ -90,12 +90,12 @@ GR can lead to serious performance degeneration in the specific scenarios of ada
 | Model | Adam | Adam + GR | Adam + GR + Zero-GR-Warmup
 |----------|:----------:|:----------:|:----------:|
 | ViT-Ti   | 14.82  | 13.92   | 13.61 |
-| ViT-S   | 12.07  | <span style="color:red">12.40</span> | **10.68** |
-| ViT-B   | 10.83  | <span style="color:red">12.36</span> | **9.42** |
+| ViT-S   | 12.07  | `12.40` | **10.68** |
+| ViT-B   | 10.83  | `12.36` | **9.42** |
 
 With both our empirical observations and theoretical analysis, we find that the biased estimation introduced in GR can induce the instability and divergence in gradient statistics of adaptive optimizers at the initial stage of training, especially with a learning rate warmup technique which originally aims to benefit gradient statistics.
 
-To mitigate this issue, we draw inspirations from the idea of warmup techniques, and propose three GR warmup strategies: $\lambda$-warmup, $r$-warmup and zero-warmup GR. See paper for details.
+To mitigate this issue, we draw inspirations from the idea of warmup techniques, and propose three GR warmup strategies: $\lambda$-warmup, $r$-warmup and zero-warmup GR. ach of the three strategies can relax the GR effect during warmup course in certain ways to ensure the accuracy of gradient statistics. See paper for details.
 
 ### End
 
